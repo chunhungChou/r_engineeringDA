@@ -1,0 +1,18 @@
+getAxisInterval <- function(x){
+    threshold <- c(3.162, 1.25, 1)
+    y <- range(x)
+    z <- format(diff(y), digits = 7, scientific = T)
+    tmp <- unlist(strsplit(z, "e"))
+    exppart <- as.numeric(tmp[2])
+    mantissa <- round(abs(as.numeric(tmp[1])), digit = 3)
+    intby  <- switch(min(which(mantissa>=threshold, arr.ind = TRUE)), 10^exppart,    
+                 0.5*10^exppart, 10^(expart-1), 10^exppart)
+    #original limits     
+    #tmp <- (0.5+0.01)*intby
+    #axislimit <- round(range(x) + c(-tmp, tmp), digit = -(exppart-1))
+    axislimit <- c(floor(y[1]/intby)*intby, ceiling(y[2]/intby)*intby)
+    return(list(axislimit = axislimit, stepBy = intby))
+}
+
+#for specified ticks location you can use 
+#ats <- seq(axislimit[1], axislimit[2], intby)
