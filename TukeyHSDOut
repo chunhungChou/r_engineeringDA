@@ -1,0 +1,61 @@
+testResult <- function(x, ...) UseMethod("testResult")
+
+testResult.default <- function(x){
+   if(! is(x,"aov")){
+      return("Not an ANOVA test")
+   }
+   tmp <- unlist(summary(x))
+   tmp1 <- tmp[which(names(tmp)=="Pr(>F)1", arr.ind=T)]
+   mm <- model.tables(x, "means")
+   tabs <- mm$tables[-1]
+   gname <- dimnames(tabs[[names(tabs)]])   
+   mm1 <- unlist(mm)
+   nn <- matrix(mm1[-1], ncol = 2)
+   tmpsum <- data.frame(group = as.vector(gname), means = nn[,1], count = nn[,2])
+   o <- order(tmpsum$means)
+   tmpsum <- tmpsum[o,]
+
+   if(tmp1 < 0.05){
+      tmp <- TukeyHSD(x, order=T)   
+      tmp1 <- tmp[[names(tmp)]]
+      tmp2 <- tmp1[,4]
+      
+      ng <- nrow(tmpsum)
+      tmp.hsd <- matrix(1, ncol = ng, nrow = ng)
+      tmp.hsd[lower.tri(tmp.hsd, diag = FALSE)] <- tmp2
+      rownames(tmp.hsd) <- tmpsum$group
+      
+      for(col.i in 1:(ng-1)){
+         tmp <- tmp.hsd[,col.i]
+         ind <- which(tmp>0.05, arr.ind = TRUE)
+         if(length(ind)>0){
+            ind <- ind[ind > col.i-1]
+            ind <- max(ind)
+         } else {
+            ind <- col.i 
+         }   
+         tmpsum$to[col.i] <- ind 
+      } 
+      tmpsum$to[ng] <- ng
+      tmpsum$fr <- 1:nrow(tmpsum)
+      nr <- unique(tmpsum$to)
+      tmpsum$g <- as.character(" ")
+      for(nr.ind in 1:length(nr)){
+         tmp <- subset(tmpsum, to == nr[nr.ind], select = c("to","fr"))
+         s.ind <- min(tmp$fr)
+         e.ind <- max(tmp$to)
+         if(nr.ind == 1){
+            tmpsum$g[s.ind:e.ind] <- as.character(LETTERS[nr.ind])
+            tmpsum$g[-(s.ind:e.ind)] <- as.character(" ")
+         } else {
+            tmpsum$g[s.ind:e.ind] <- paste(tmpsum$g[s.ind:e.ind], as.character(LETTERS[nr.ind]), sep="")
+            tmpsum$g[-(s.ind:e.ind)] <- paste(tmpsum$g[-(s.ind:e.ind)], as.character(" "), sep="")          
+         }
+      }
+      out <- subset(tmpsum,, select=c("group","means","count","g"))
+   } else {
+      out <- data.frame(tmpsum, g = rep("A", nrow(tmpsum))) 
+   }
+   return(out)
+}
+         
