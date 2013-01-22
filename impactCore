@@ -1,0 +1,75 @@
+setClass("YieldImpact",
+          representation(caltype="character",
+                         inData="data.frame",
+                         resVar="character",
+                         preVar="character",
+                         killP="numeric"))
+
+
+if(!isGeneric("killProb"))
+   setGeneric("killProb",
+      function(object)
+               standardGeneric("killProb")
+               )
+
+if(!isGeneric("killYield"))
+   setGeneric("killYield",
+      function(object)
+               standardGeneric("killYield")
+               )
+
+
+setMethod("killProb",
+         signature(object = "YieldImpact"),
+         function(object){
+            #oldname<-c(object@resVar,object@preVar)
+            #newparm<-paste("s",1:length(object@preVar),sep="")
+            #newname<-c("res",newparm)
+            #pairitem<-data.frame(on=oldname,ne=newname)
+            #preData<-inData[oldname]
+            #names(preData)<-newname
+            #tmp<-glm(res~.,data=object@inData,family=binomial)
+
+            tmp<-paste(object@preVar, collapse= "+")
+            fma<-as.formula(paste(object@resVar," ~ ",tmp))
+            tmp<-glm(fma,data=object@inData,family=binomial)
+            d<-coef(tmp)
+            d1<-d[2:length(d)]
+            odd<-exp(d1)
+            kill_rate<-odd/sum(odd,na.rm=T)
+
+            return(kill_rate)
+         }
+)
+
+setMethod("killYield",
+         signature(object = "YieldImpact"),
+         function(object){
+            if(sum(object@killP)==0){
+                   object@killP <- killProb(object)
+            }
+            tmpData<-object@inData[c(object@resVar,object@preVar)]
+            dataRows<-nrow(tmpData)
+            if(object@caltype=="defect"){
+               tmp_for_cal<-tmpData[tmpData[object@resVar]==1,]
+            }
+            else if (object@caltype=="signature"){
+               tmp_for_cal<-tmpData[(rowSums(tmpData)-tmpData[object@resVar])>0,]
+            }
+
+            tmp_fail<-tmp_for_cal[object@preVar]
+            killP_matrix<-matrix(0,nrow=ncol(tmp_fail),ncol=ncol(tmp_fail))
+            diag(killP_matrix)<-object@killP
+            tmp_fail1<-as.matrix(tmp_fail) %*% killP_matrix
+            tmp_raw<-rowSums(tmp_fail1)
+            tmp_fail2<-tmp_fail1/tmp_raw
+            tmp_fail2<-replace(tmp_fail2,is.na(tmp_fail2),0)
+            tmp_w<-matrix(as.matrix(tmp_for_cal[object@resVar]),nrow=1)
+            kill_yield<-(tmp_w %*% tmp_fail2)*100/dataRows
+            w_loss_ch<-data.frame(parm=names(tmp_fail),dy=as.vector(kill_yield))
+
+            return(w_loss_ch)
+         }
+)
+
+
