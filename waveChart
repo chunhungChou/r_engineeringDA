@@ -1,0 +1,129 @@
+waveChart <- function(x, group, xAt, lineStat = "mean", barScale = 0.5, plotType = "B", title = "", xlab = "", ylab = "", ...){
+    
+    dots <- list(...)
+    allhg <- hist(x$value, plot = F)
+    breaks <- allhg$breaks
+    width <- breaks[2] - breaks[1]
+    nBreaks <- length(breaks)
+    ylim <- range((breaks - breaks[1])/width)
+
+    xaxisLabel <- xAt
+    nxaxis <- length(xAt)
+    xAtNum <- 1:nxaxis
+    xlim <- c(-1,1)*0.5 + range(xAtNum)
+    xlim1 <- c(0, nxaxis+1)
+    groupNum <- 1
+ 
+    if(!is.null(group)){   
+       ngroup <- unique(group)
+       groupNum <- length(ngroup)
+       #colSet <- setColors(groupNum)
+       colSet <- rainbow(groupNum) 
+       colsData <- data.frame(group = as.character(ngroup), cols = colSet, stringsAsFactors = FALSE)
+    } else {
+       #colSet <- setColors(nxaxis)
+       colSet <- rainbow(nxaxis) 
+       colsData <- data.frame(group = as.character(1:nxaxis), cols = colSet, stringsAsFactors = FALSE) 
+    }
+
+    if(length(ngroup)>1){   
+       defpar <- par(no.readonly = TRUE)
+       layout(matrix(c(1,2), ncol=2, nrow=1), width=c(3,1))
+       par(mar=c(5.1, 4.1, 4.1, 0))
+    }   
+
+   # tmpStatValue <- by(tmpAxisData$value, group, FUN = function(x, stats){statsValue(as.numeric(x), stats)}, stats = lineStat)
+
+    plot(0, xaxs = "i", xlim = xlim1, ylim = ylim, main = title, xlab = xlab, ylab = ylab, type = "n", axes = FALSE) 
+
+    for(i in 1:nxaxis){
+       tmpAxisDataAll <- x[x$xAt == xAt[i], ]
+        
+       if(is.null(group)){
+         tmpAxisData <- tmpAxisDataAll$value
+         useCol <- as.character(subset(colsData, group == i)$cols)
+         tmp <- hist(tmpAxisData, breaks = breaks, plot=FALSE)
+         if(plotType == "L"){
+            tmpcur <- density(tmpAxisData, from = breaks[1], to = breaks[nBreaks])
+            ycount <- (tmpcur$y/max(tmpcur$y))*barScale
+            lines(i + ycount, (tmpcur$x - tmp$breaks[1])/width, col = useCol)
+         } else {
+            xmin <- -xAtNum[i] +xlim[1]
+      xmax <- xlim1[2] - xAtNum[i]
+            print(paste("i=",i, ":", xmin, ":",xmax))
+            par(new = TRUE)
+            barCount <- (tmp$counts/max(tmp$counts))*barScale
+            barplot(barCount, xlim = c(xmin, xmax), space=0, horiz=TRUE, border = useCol, axes = FALSE, col = "transparent")
+            if(plotType == "B"){
+               tmpcur <- density(tmpAxisData, from = breaks[1], to = breaks[nBreaks])
+               ycount <- (tmpcur$y/max(tmpcur$y))*barScale
+               lines(ycount, (tmpcur$x - breaks[1])/width, col = useCol)
+            }   
+         }
+       } else {
+          for(n.group in 1:groupNum){              
+             useCol <- as.character(subset(colsData, group == ngroup[n.group])$cols)
+             tmpData <- (subset(tmpAxisDataAll, group == ngroup[n.group]))$value
+             tmpH <- hist(tmpData, breaks = breaks, plot =FALSE)
+             if(plotType == "L"){
+                 tmpData <- na.omit(tmpData)
+                 tmpcur <- density(tmpData, from = breaks[1], to = breaks[nBreaks])
+                 ycount <- (tmpcur$y/max(tmpcur$y))*barScale
+                 lines(i + ycount, (tmpcur$x - breaks[1])/width, col = useCol)
+             } else {
+                 xmin <- -xAtNum[i] + xlim[1]
+	         xmax <- xlim1[2] - xAtNum[i]
+                 barCount <- (tmpH$counts/max(tmpH$counts))*barScale
+                 par(new = TRUE)
+                 barplot(barCount, space=0, xlim = c(xmin, xmax), axes = FALSE, horiz=TRUE, col = "transparent", border = useCol) 
+                 if(plotType == "B"){
+                     tmpData <- na.omit(tmpData)
+                     tmpcur <- density(tmpData, from = breaks[1], to = breaks[nBreaks])
+                     ycount <- (tmpcur$y/max(tmpcur$y))*barScale
+                     lines(ycount, (tmpcur$x - breaks[1])/width, col = useCol)
+                 }   
+             }
+          }
+       }
+    }   
+
+    if(plotType == "L"){
+       abline(v = xAtNum)
+       axis(1, at = xAtNum, labels = xAt)
+    } else {
+       abline(v = 1-xAtNum)
+       axis(1, at = rev(1-xAtNum), labels = xAt)
+    }
+    axis(2, at = (breaks - breaks[1])/width, labels = breaks, las = 2)
+    box()
+
+    if(!is.null(group)){
+          par(xpd = T, mar=c(5.1, 0.5, 4.1, 6.1))
+          plot.new()
+          plot.window(c(0,1), c(0,1))
+          textNo <- max(nchar(colsData$group))
+          if(textNo > 20){
+            cex <- 0.6
+          } else if(textNo > 15){
+            cex <- 0.8
+          } else {
+            cex <- 1 
+          }
+
+          tmplegend <- colsData$group
+          cols <- as.character(colsData$cols)
+          legend("topleft", legend = tmplegend, col=cols, pch = 16, text.col=cols, inset=0.05, cex = cex) 
+      
+          par(defpar)                 
+    }
+}
+
+#test data
+x <- data.frame(value = c(rnorm(250), rnorm(250, -1, 2), rgamma(250,4), rgamma(250, 1, 3)), group = rep(c(rep("G1", 100), rep("G2", 80), rep("G3", 70)), 4), xAt = rep(c("A", "B", "C", "D"), each = 250))
+
+group <- NULL
+xAt <- unique(x$xAt)
+waveChart(x, group,xAt, barScale = 0.8, title = "Histogram and Density Chart", xlab = "Main Group", ylab = "Value")
+
+waveChart(x, x$group,xAt, barScale = 0.8, title = "Histogram and Density Chart", xlab = "Main Group", ylab = "Value")
+
