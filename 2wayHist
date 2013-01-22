@@ -1,0 +1,29 @@
+## 2-dimension histogram
+## Method 1.subset by x-axis, table by y-axis
+## method 2: cut in x, cut in y, paste as label, table count ,exclude outliers
+
+
+twoWayhist <- function(x, y, cuts, ...) {
+
+   xmid <- calBreaks(x, cuts, exact=T)
+   ymid <- calBreaks(y, cuts, exact=T)
+   xinR <- xmid$xrange
+   yinR <- ymid$xrange
+   xmidv <- xmid$cutInt
+   ymidv <- ymid$cutInt
+   tmp <- cbind(x, y)
+   tmp.in <- tmp[,1] >= xinR[1] & tmp[,1] <= xinR[2] & tmp[,2] >= yinR[1] & tmp[,2] <= yinR[2]
+   outData <- tmp[!tmp.in,]
+   inData <- tmp[tmp.in, ]
+   
+   tmpx <- cut(inData[, 1], xmid$cutInt, label = (xmidv[-1]+xmidv[-length(xmidv)])/2, include.lowest = T)
+   tmpy <- cut(inData[, 2], ymid$cutInt, label = (ymidv[-1]+ymidv[-length(xmidv)])/2, include.lowest = T)
+   tmpxy <- paste(tmpx, ",", tmpy, sep = "")
+   tmpxyout <- paste(outData[,1], ",", outData[,2], sep = "")
+   tmpxy <- c(tmpxy, tmpxyout)
+   inD <- table(tmpxy)
+   tmp <- matrix(unlist(strsplit(names(inD), ",")), ncol = 2, byrow = T)
+   out <- cbind(as.numeric(tmp[,1]), as.numeric(tmp[,2]), unlist(inD))
+   return(out)
+}
+
